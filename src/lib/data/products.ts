@@ -134,3 +134,104 @@ export const listProductsWithSort = async ({
     queryParams,
   }
 }
+
+export const getHomePageProducts = async () => {
+  try {
+    const [latestRes, bestSellersRes, newOnTheShelfRes, recommendedLaptopsRes] = await Promise.all([
+      sdk.store.product.list({
+        limit: 8,
+        order: "-created_at",
+      }),
+      sdk.store.product.list({
+        limit: 50,
+        order: "-created_at",
+        tag_id: "ptag_01K9F18THMNJ0CA27JFRXBSFG9",
+        region_id: "reg_01K9ER4AAEJ0133FFBZVS61SFR",
+        fields: "*variants.calculated_price,*variants.prices,+variants.inventory_quantity,*variants.images,+metadata,+tags",
+      }),
+      sdk.store.product.list({
+        limit: 50,
+        order: "-created_at",
+        tag_id: "ptag_01K9F1CP0HJ1DNNEMDA7E0HBSV",
+        region_id: "reg_01K9ER4AAEJ0133FFBZVS61SFR",
+        fields: "*variants.calculated_price,*variants.prices,+variants.inventory_quantity,*variants.images,+metadata,+tags",
+      }),
+      sdk.store.product.list({
+        limit: 50,
+        order: "-created_at",
+        tag_id: "ptag_01K9F1DCMF5MZ804M6YZS3RBZH",
+        region_id: "reg_01K9ER4AAEJ0133FFBZVS61SFR",
+        fields: "*variants.calculated_price,*variants.prices,+variants.inventory_quantity,*variants.images,+metadata,+tags",
+      }),
+    ])
+
+    return {
+      latestProducts: latestRes.products,
+      bestSellerProducts: bestSellersRes.products,
+      newOnTheShelfProducts: newOnTheShelfRes.products,
+      recommendedLaptops: recommendedLaptopsRes.products,
+    }
+  } catch (err: any) {
+    throw new Error(err.message || "Failed to fetch products")
+  }
+}
+
+// export const storeProductAllFilter = async (limit: number = 100, offset: number = 0) => {
+//   try {
+//     const filteredProductRes = await sdk.store.product.list({
+//       limit: limit,
+//       offset: offset,
+//       region_id: "reg_01K9ER4AAEJ0133FFBZVS61SFR",
+//       fields: "*variants.calculated_price,*variants.prices,+variants.inventory_quantity,*variants.images,+metadata,+tags",
+//     })
+    
+//     return {
+//       products: filteredProductRes.products,
+//       count: filteredProductRes.count,
+//       limit: filteredProductRes.limit,
+//       offset: filteredProductRes.offset,
+//     }
+//   } catch (err: any) {
+//     throw new Error(err.message || "Failed to fetch filtered products")
+//   }
+// }
+export const storeProductAllFilter = async (
+  limit: number = 100, 
+  offset: number = 0,
+  filters?: {
+    category_id?: string[]
+    collection_id?: string[]
+    price_min?: number
+    price_max?: number
+  }
+) => {
+  try {
+    const queryParams: any = {
+      limit: limit,
+      offset: offset,
+      region_id: "reg_01K9ER4AAEJ0133FFBZVS61SFR",
+      fields: "*variants.calculated_price,*variants.prices,+variants.inventory_quantity,*variants.images,+metadata,+tags",
+    }
+
+    // Add category filter if provided
+    if (filters?.category_id && filters.category_id.length > 0) {
+      queryParams.category_id = filters.category_id
+    }
+
+    // Add collection filter if provided
+    if (filters?.collection_id && filters.collection_id.length > 0) {
+      queryParams.collection_id = filters.collection_id
+    }
+
+    const filteredProductRes = await sdk.store.product.list(queryParams)
+    
+    return {
+      products: filteredProductRes.products,
+      count: filteredProductRes.count,
+      limit: filteredProductRes.limit,
+      offset: filteredProductRes.offset,
+    }
+  } catch (err: any) {
+    throw new Error(err.message || "Failed to fetch filtered products")
+  }
+}

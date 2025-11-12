@@ -1,10 +1,11 @@
 import { listCategories } from "@lib/data/categories"
 import { listCollections } from "@lib/data/collections"
-import { Text, clx } from "@medusajs/ui"
+// import { Text, clx } from "@medusajs/ui"
 
-import LocalizedClientLink from "@modules/common/components/localized-client-link"
-import MedusaCTA from "@modules/layout/components/medusa-cta"
-
+// import LocalizedClientLink from "@modules/common/components/localized-client-link"
+// import MedusaCTA from "@modules/layout/components/medusa-cta"
+import Image from "next/image"
+import Link from "next/link"
 export default async function Footer() {
   const { collections } = await listCollections({
     fields: "*products",
@@ -12,146 +13,111 @@ export default async function Footer() {
   const productCategories = await listCategories()
 
   return (
-    <footer className="border-t border-ui-border-base w-full">
-      <div className="content-container flex flex-col w-full">
-        <div className="flex flex-col gap-y-6 xsmall:flex-row items-start justify-between py-40">
-          <div>
-            <LocalizedClientLink
-              href="/"
-              className="txt-compact-xlarge-plus text-ui-fg-subtle hover:text-ui-fg-base uppercase"
-            >
-              Medusa Store
-            </LocalizedClientLink>
-          </div>
-          <div className="text-small-regular gap-10 md:gap-x-16 grid grid-cols-2 sm:grid-cols-3">
-            {productCategories && productCategories?.length > 0 && (
-              <div className="flex flex-col gap-y-2">
-                <span className="txt-small-plus txt-ui-fg-base">
-                  Categories
-                </span>
-                <ul
-                  className="grid grid-cols-1 gap-2"
-                  data-testid="footer-categories"
-                >
-                  {productCategories?.slice(0, 6).map((c) => {
-                    if (c.parent_category) {
-                      return
-                    }
+    <footer className="bg-black text-white px-[30px]">
+            <div className="max-w-[1200px] mx-auto border-b border-[#FFFFFF26]">
+                <div className="flex md:flex-row flex-col md:gap-12">
+                    <div className="md:basis-[60%] basis-[50%] md:pl-[50px] md:py-[80px] py-[60px]">
+                        <div className="flex mb-[30px]">
+                            <div className="basis-[50%]">
+                                <h3 className="text-lg font-bold mb-6">קישורים מהירים</h3>
+                                <ul className="space-y-3 text-sm text-[#919191]">
+                                    <li>
+                                        <Link href="#" className="hover:text-white transition">
+                                            קבוצות מוצרים
+                                        </Link>
+                                    </li>
+                                    <li>
+                                        <Link href="#" className="hover:text-white transition">
+                                            משלוחים בחינם
+                                        </Link>
+                                    </li>
+                                    <li>
+                                        <Link href="#" className="hover:text-white transition">
+                                            מבחנות ותמונות
+                                        </Link>
+                                    </li>
+                                    <li>
+                                        <Link href="#" className="hover:text-white transition">
+                                            אביזרים
+                                        </Link>
+                                    </li>
+                                    <li>
+                                        <Link href="#" className="hover:text-white transition">
+                                            פחיות מדיה
+                                        </Link>
+                                    </li>
+                                    <li>
+                                        <Link href="#" className="hover:text-white transition">
+                                            רץ אירוח לעבודה
+                                        </Link>
+                                    </li>
+                                </ul>
+                            </div>
+                            <div className="basis-[50%]">
+                                <h3 className="text-lg font-bold mb-6">תמשיך הלאה</h3>
+                                <ul className="space-y-3 text-sm text-[#919191]">
+                                    <li>
+                                        <Link href="#" className="hover:text-white transition flex gap-[5px]">
+                                            <Image src="/icons/facebook.png" alt="Facebook" height={20} width={20} className="max-w-[15px] max-h-[15px] object-contain"/> פייסבוק
+                                        </Link>
+                                    </li>
+                                    <li>
+                                        <Link href="#" className="hover:text-white transition flex gap-[5px]">
+                                            <Image src="/icons/insta.png" alt="Insta" height={20} width={20} className="max-w-[15px] max-h-[15px] object-contain"/> אינסטגרם
+                                        </Link>
+                                    </li>
+                                    <li>
+                                        <Link href="#" className="hover:text-white transition flex gap-[5px]">
+                                            <Image src="/icons/twitter.png" alt="Twitter" height={20} width={20} className="max-w-[15px] max-h-[15px] object-contain"/> טוויטר
+                                        </Link>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div>
+                            <p className="text-xs text-[#919191] leading-relaxed font-semibold">
+                                ב-The Computer Importer הטכנולוגיה היא התשוקה שלנו. עם ניסיון של שנים בייבוא והפצה בינלאומיים, אנו מביאים לישראל את הציוד הממוחשב החדשני והאמין ביותר.
+                            </p>
+                        </div>
+                    </div>
+                    <div className="md:basis-[40%] basis-[50%] md:pr-[50px] md:py-[80px] pb-[60px] md:border-r border-[#FFFFFF26]">
+                        <div className="space-y-4 text-sm text-gray-300">
+                            <div className="flex gap-[30px]">
+                                <p className="font-bold mb-1">כְּתוֹבֶת</p>
+                                <p className="text-white text-right">8975 שדרות צ'רלסטון מערב, סוויטה 190, לאס וגאס, נבדה 89117</p>
+                            </div>
+                            <div className="flex gap-[30px]">
+                                <p className="font-bold mb-1">טֵלֵפוֹן</p>
+                                <p className="text-white break-all text-right">0 123 4567 890</p>
+                            </div>
+                             <div className="flex gap-[30px]">
+                                <p className="font-bold mb-1">אלקטרו</p>
+                                <p className="text-white break-all text-right">contact@KempseyOutdoors.com</p>
+                            </div>
+                            <div className="flex gap-[30px] justify-center mt-[60px]">  
+                                <Image src="/img/cards.png" alt="Chat" height={400} width={400} className="w-[350px]"/>                                              
+                            </div>
+                        </div>
+                    </div>
 
-                    const children =
-                      c.category_children?.map((child) => ({
-                        name: child.name,
-                        handle: child.handle,
-                        id: child.id,
-                      })) || null
-
-                    return (
-                      <li
-                        className="flex flex-col gap-2 text-ui-fg-subtle txt-small"
-                        key={c.id}
-                      >
-                        <LocalizedClientLink
-                          className={clx(
-                            "hover:text-ui-fg-base",
-                            children && "txt-small-plus"
-                          )}
-                          href={`/categories/${c.handle}`}
-                          data-testid="category-link"
-                        >
-                          {c.name}
-                        </LocalizedClientLink>
-                        {children && (
-                          <ul className="grid grid-cols-1 ml-3 gap-2">
-                            {children &&
-                              children.map((child) => (
-                                <li key={child.id}>
-                                  <LocalizedClientLink
-                                    className="hover:text-ui-fg-base"
-                                    href={`/categories/${child.handle}`}
-                                    data-testid="category-link"
-                                  >
-                                    {child.name}
-                                  </LocalizedClientLink>
-                                </li>
-                              ))}
-                          </ul>
-                        )}
-                      </li>
-                    )
-                  })}
-                </ul>
-              </div>
-            )}
-            {collections && collections.length > 0 && (
-              <div className="flex flex-col gap-y-2">
-                <span className="txt-small-plus txt-ui-fg-base">
-                  Collections
-                </span>
-                <ul
-                  className={clx(
-                    "grid grid-cols-1 gap-2 text-ui-fg-subtle txt-small",
-                    {
-                      "grid-cols-2": (collections?.length || 0) > 3,
-                    }
-                  )}
-                >
-                  {collections?.slice(0, 6).map((c) => (
-                    <li key={c.id}>
-                      <LocalizedClientLink
-                        className="hover:text-ui-fg-base"
-                        href={`/collections/${c.handle}`}
-                      >
-                        {c.title}
-                      </LocalizedClientLink>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            <div className="flex flex-col gap-y-2">
-              <span className="txt-small-plus txt-ui-fg-base">Medusa</span>
-              <ul className="grid grid-cols-1 gap-y-2 text-ui-fg-subtle txt-small">
-                <li>
-                  <a
-                    href="https://github.com/medusajs"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="hover:text-ui-fg-base"
-                  >
-                    GitHub
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="https://docs.medusajs.com"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="hover:text-ui-fg-base"
-                  >
-                    Documentation
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="https://github.com/medusajs/nextjs-starter-medusa"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="hover:text-ui-fg-base"
-                  >
-                    Source code
-                  </a>
-                </li>
-              </ul>
+                </div>
             </div>
-          </div>
-        </div>
-        <div className="flex w-full mb-16 justify-between text-ui-fg-muted">
-          <Text className="txt-compact-small">
-            © {new Date().getFullYear()} Medusa Store. All rights reserved.
-          </Text>
-          <MedusaCTA />
-        </div>
-      </div>
-    </footer>
+            <div>
+                <div className="mx-auto max-w-[1200px]">
+                    <div className="flex md:flex-row flex-col-reverse gap-[20px] justify-between py-[30px]">
+                        <div className="">
+                            <p className="md:text-right text-center md:text-base text-sm">© 2025 יבואן המחשבים, כל הזכויות שמורות.</p>
+                        </div>
+                        <div className="md:text-right text-center md:text-base text-sm">
+                            <Link href="">הצהרת פרטיות</Link> |     
+                            <Link href="">תנאים והגבלות</Link>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <button className="fixed md:bottom-6 bottom-4 md:right-6 right-2 rounded-full w-12 h-12 md:w-16 md:h-16 flex items-center justify-center hover:scale-[1.05] duration-400 cursor-pointer">
+                <Image src="/icons/chat.png" alt="Chat" height={60} width={60} />
+            </button>
+        </footer>
   )
 }
