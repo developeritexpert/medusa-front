@@ -195,6 +195,49 @@ export const getHomePageProducts = async () => {
 //     throw new Error(err.message || "Failed to fetch filtered products")
 //   }
 // }
+
+
+// export const storeProductAllFilter = async (
+//   limit: number = 100, 
+//   offset: number = 0,
+//   filters?: {
+//     category_id?: string[]
+//     collection_id?: string[]
+//     price_min?: number
+//     price_max?: number
+//   }
+// ) => {
+//   try {
+//     const queryParams: any = {
+//       limit: limit,
+//       offset: offset,
+//       region_id: "reg_01K9ER4AAEJ0133FFBZVS61SFR",
+//       fields: "*variants.calculated_price,*variants.prices,+variants.inventory_quantity,*variants.images,+metadata,+tags",
+//     }
+
+//     // Add category filter if provided
+//     if (filters?.category_id && filters.category_id.length > 0) {
+//       queryParams.category_id = filters.category_id
+//     }
+
+//     // Add collection filter if provided
+//     if (filters?.collection_id && filters.collection_id.length > 0) {
+//       queryParams.collection_id = ['pcol_01K9S5NNFTWTXSZ0PZ6GV7ABYY','pcol_01K9S5QT90Q970AA24S6GA2WR4']
+//     }
+
+//     const filteredProductRes = await sdk.store.product.list(queryParams)
+    
+//     return {
+//       products: filteredProductRes.products,
+//       count: filteredProductRes.count,
+//       limit: filteredProductRes.limit,
+//       offset: filteredProductRes.offset,
+//     }
+//   } catch (err: any) {
+//     throw new Error(err.message || "Failed to fetch filtered products")
+//   }
+// }
+
 export const storeProductAllFilter = async (
   limit: number = 100, 
   offset: number = 0,
@@ -213,15 +256,19 @@ export const storeProductAllFilter = async (
       fields: "*variants.calculated_price,*variants.prices,+variants.inventory_quantity,*variants.images,+metadata,+tags",
     }
 
-    // Add category filter if provided
+    // Add category filter if provided (array for OR logic)
     if (filters?.category_id && filters.category_id.length > 0) {
       queryParams.category_id = filters.category_id
     }
 
-    // Add collection filter if provided
+    // Add collection filter if provided (array for OR logic)
     if (filters?.collection_id && filters.collection_id.length > 0) {
       queryParams.collection_id = filters.collection_id
     }
+
+    // Note: MedusaJS API doesn't support price filtering
+    // Price filtering must be done client-side in the component
+    // We don't filter here to preserve pagination
 
     const filteredProductRes = await sdk.store.product.list(queryParams)
     

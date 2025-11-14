@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter, useSearchParams, usePathname } from "next/navigation"
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useTransition } from "react"
 import ProductCard from "@modules/layout/components/products/product-card"
 import { storeProductAllFilter } from "@lib/data/products"
 
@@ -9,199 +9,271 @@ interface ProductsGridProps {
   initialProducts: any[]
   initialCount: number
   initialPage: number
-  filters?: any // Add filters prop
-  onFiltersUpdate?: (filters: any) => void // Add callback
+  initialFilters: {
+    categories: string[]
+    collections: string[]
+    minPrice: number
+    maxPrice: number
+  }
 }
 
 export default function ProductsGrid({ 
   initialProducts, 
   initialCount,
   initialPage,
-  filters,
-  onFiltersUpdate
+  initialFilters
 }: ProductsGridProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const [isPending, startTransition] = useTransition()
   
   const [products, setProducts] = useState(initialProducts)
   const [loading, setLoading] = useState(false)
   const [currentPage, setCurrentPage] = useState(initialPage)
   const [totalCount, setTotalCount] = useState(initialCount)
   
-  // Cache for prefetched data - now includes filter key
+  // Track current filters from URL
+  const [currentFilters, setCurrentFilters] = useState(initialFilters)
+  
+  // Cache for prefetched data
   const cacheRef = useRef<Map<string, any>>(new Map())
+  
+  // Track if we're currently fetching to prevent duplicate requests
+  const isFetchingRef = useRef(false)
+  
+  // Track previous search params to detect actual changes
+  const prevSearchParamsRef = useRef(searchParams.toString())
   
   const ITEMS_PER_PAGE = 3
   const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE)
 
-  // Create cache key based on page and filters
-  const getCacheKey = (page: number, filterParams: any = filters) => {
-    return `${page}-${JSON.stringify(filterParams || {})}`
+  // Create cache key based on page and filters (WITHOUT price filters)
+  const getCacheKey = (page: number, filters: typeof currentFilters) => {
+    return JSON.stringify({
+      page,
+      categories: filters.categories.sort(),
+      collections: filters.collections.sort(),
+    })
   }
 
   // Initialize cache with initial data
   useEffect(() => {
-    cacheRef.current.set(getCacheKey(initialPage), initialProducts)
-  }, [initialPage, initialProducts])
+    const initialKey = getCacheKey(initialPage, initialFilters)
+    cacheRef.current.set(initialKey, {
+      products: initialProducts,
+      count: initialCount
+    })
+  }, [])
 
-  // Fetch products with filters
-  const fetchProducts = async (page: number, filterParams: any = filters) => {
+  // Fetch products with filters (NO PRICE FILTERING IN API)
+  const fetchProducts = async (page: number, filters: typeof currentFilters) => {
     const offset = (page - 1) * ITEMS_PER_PAGE
     
     const apiFilters: any = {}
     
-    if (filterParams?.categories && filterParams.categories.length > 0) {
-      apiFilters.category_id = filterParams.categories
+    if (filters.categories.length > 0) {
+      apiFilters.category_id = filters.categories
     }
     
-    if (filterParams?.collections && filterParams.collections.length > 0) {
-      apiFilters.collection_id = filterParams.collections
-    }
-    
-    if (filterParams?.minPrice && filterParams.minPrice > 0) {
-      apiFilters.price_min = filterParams.minPrice
-    }
-    
-    if (filterParams?.maxPrice) {
-      apiFilters.price_max = filterParams.maxPrice
+    if (filters.collections.length > 0) {
+      apiFilters.collection_id = filters.collections
     }
 
     const data = await storeProductAllFilter(ITEMS_PER_PAGE, offset, apiFilters)
     return data
   }
 
-  // Handle filter changes
-  useEffect(() => {
-    if (!filters) return
+  // Apply client-side price filter
+  const applyPriceFilter = (products: any[], filters: typeof currentFilters) => {
+    if (filters.minPrice === 0 && filters.maxPrice === 10000) {
+      return products
+    }
 
-    const applyFilters = async () => {
-      setLoading(true)
-      setCurrentPage(1) // Reset to first page when filters change
+    return products.filter(product => {
+      const prices = product.variants?.map((variant: any) => {
+        const price = variant.calculated_price?.calculated_amount || 
+                     variant.prices?.[0]?.amount || 
+                     0
+        return price / 100
+      }) || []
       
-      try {
-        const data = await fetchProducts(1, filters)
-        
-        // Clear cache when filters change
-        cacheRef.current.clear()
-        cacheRef.current.set(getCacheKey(1, filters), data.products)
-        
-        setProducts(data.products)
-        setTotalCount(data.count || 0)
-        
-        // Update URL with filters
-        const params = new URLSearchParams(searchParams.toString())
-        params.set('page', '1')
-        
-        if (filters.categories?.length > 0) {
-          params.set('categories', filters.categories.join(','))
-        } else {
-          params.delete('categories')
-        }
-        
-        if (filters.collections?.length > 0) {
-          params.set('collections', filters.collections.join(','))
-        } else {
-          params.delete('collections')
-        }
-        
-        router.push(`${pathname}?${params.toString()}`, { scroll: false })
-      } catch (error) {
-        console.error("Error applying filters:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
+      if (prices.length === 0) return true
+      
+      const minProductPrice = Math.min(...prices)
+      
+      const matchesMin = filters.minPrice === 0 || minProductPrice >= filters.minPrice
+      const matchesMax = filters.maxPrice === 10000 || minProductPrice <= filters.maxPrice
+      
+      return matchesMin && matchesMax
+    })
+  }
 
-    applyFilters()
-  }, [filters])
-
-  // Prefetch adjacent pages with current filters
+  // Parse filters from URL whenever it changes
   useEffect(() => {
-    const prefetchAdjacentPages = async () => {
-      // Prefetch next page
-      if (currentPage < totalPages && !cacheRef.current.has(getCacheKey(currentPage + 1))) {
-        try {
-          const data = await fetchProducts(currentPage + 1, filters)
-          cacheRef.current.set(getCacheKey(currentPage + 1, filters), data.products)
-        } catch (error) {
-          console.error("Error prefetching next page:", error)
-        }
-      }
-
-      // Prefetch previous page
-      if (currentPage > 1 && !cacheRef.current.has(getCacheKey(currentPage - 1))) {
-        try {
-          const data = await fetchProducts(currentPage - 1, filters)
-          cacheRef.current.set(getCacheKey(currentPage - 1, filters), data.products)
-        } catch (error) {
-          console.error("Error prefetching previous page:", error)
-        }
-      }
+    // Check if search params actually changed
+    const currentSearchParams = searchParams.toString()
+    if (currentSearchParams === prevSearchParamsRef.current) {
+      return
     }
+    prevSearchParamsRef.current = currentSearchParams
 
-    const timer = setTimeout(prefetchAdjacentPages, 100)
-    return () => clearTimeout(timer)
-  }, [currentPage, totalPages, filters])
-
-  // Handle page change with cache
-  const handlePageChange = async (page: number) => {
-    setCurrentPage(page)
+    if (isFetchingRef.current) return
     
+    const urlFilters = {
+      categories: searchParams.get('categories')?.split(',').filter(Boolean) || [],
+      collections: searchParams.get('collections')?.split(',').filter(Boolean) || [],
+      minPrice: searchParams.get('minPrice') ? parseFloat(searchParams.get('minPrice')!) : 0,
+      maxPrice: searchParams.get('maxPrice') ? parseFloat(searchParams.get('maxPrice')!) : 10000,
+    }
+    
+    const urlPage = parseInt(searchParams.get('page') || '1')
+    
+    // Check if category/collection filters changed (these affect API)
+    const apiFiltersChanged = 
+      JSON.stringify(urlFilters.categories.sort()) !== JSON.stringify(currentFilters.categories.sort()) ||
+      JSON.stringify(urlFilters.collections.sort()) !== JSON.stringify(currentFilters.collections.sort())
+    
+    // Check if only price changed (client-side only)
+    const onlyPriceChanged = 
+      !apiFiltersChanged &&
+      (urlFilters.minPrice !== currentFilters.minPrice || urlFilters.maxPrice !== currentFilters.maxPrice)
+    
+    const pageChanged = urlPage !== currentPage
+    
+    // Only fetch if page changed (not filters, as SSR handles filter changes)
+    if (pageChanged && !apiFiltersChanged) {
+      setCurrentFilters(urlFilters)
+      setCurrentPage(urlPage)
+      fetchAndUpdateProducts(urlPage, urlFilters)
+    } else if (onlyPriceChanged) {
+      // Only price changed - apply client-side filter
+      setCurrentFilters(urlFilters)
+      const filtered = applyPriceFilter(products, urlFilters)
+      setProducts(filtered)
+    } else if (apiFiltersChanged) {
+      // Filters changed - use SSR data, just apply price filter
+      setCurrentFilters(urlFilters)
+      setCurrentPage(urlPage)
+      const filtered = applyPriceFilter(initialProducts, urlFilters)
+      setProducts(filtered)
+      setTotalCount(initialCount)
+    }
+  }, [searchParams])
+
+  // Update when initialProducts change (from SSR)
+  useEffect(() => {
+    const filtered = applyPriceFilter(initialProducts, currentFilters)
+    setProducts(filtered)
+    setTotalCount(initialCount)
+    setCurrentPage(initialPage)
+  }, [initialProducts, initialCount, initialPage])
+
+  // Fetch and update products
+  const fetchAndUpdateProducts = async (page: number, filters: typeof currentFilters) => {
     const cacheKey = getCacheKey(page, filters)
     
-    // Check if page is already cached
+    // Check cache first
     if (cacheRef.current.has(cacheKey)) {
-      // INSTANT! Use cached data
-      setProducts(cacheRef.current.get(cacheKey))
+      const cached = cacheRef.current.get(cacheKey)
+      const filtered = applyPriceFilter(cached.products, filters)
+      setProducts(filtered)
+      setTotalCount(cached.count)
+      return
+    }
+    
+    if (isFetchingRef.current) return
+    
+    isFetchingRef.current = true
+    setLoading(true)
+    
+    try {
+      const data = await fetchProducts(page, filters)
       
-      // Update URL
+      cacheRef.current.set(cacheKey, {
+        products: data.products,
+        count: data.count
+      })
+      
+      const filtered = applyPriceFilter(data.products, filters)
+      setProducts(filtered)
+      setTotalCount(data.count || 0)
+    } catch (error) {
+      console.error("Error loading products:", error)
+    } finally {
+      setLoading(false)
+      isFetchingRef.current = false
+    }
+  }
+
+  // Prefetch adjacent pages
+  useEffect(() => {
+    const prefetchAdjacentPages = async () => {
+      if (loading) return
+      
+      if (currentPage < totalPages) {
+        const nextKey = getCacheKey(currentPage + 1, currentFilters)
+        if (!cacheRef.current.has(nextKey)) {
+          try {
+            const data = await fetchProducts(currentPage + 1, currentFilters)
+            cacheRef.current.set(nextKey, {
+              products: data.products,
+              count: data.count
+            })
+          } catch (error) {
+            // Silent fail
+          }
+        }
+      }
+
+      if (currentPage > 1) {
+        const prevKey = getCacheKey(currentPage - 1, currentFilters)
+        if (!cacheRef.current.has(prevKey)) {
+          try {
+            const data = await fetchProducts(currentPage - 1, currentFilters)
+            cacheRef.current.set(prevKey, {
+              products: data.products,
+              count: data.count
+            })
+          } catch (error) {
+            // Silent fail
+          }
+        }
+      }
+    }
+
+    const timer = setTimeout(prefetchAdjacentPages, 500)
+    return () => clearTimeout(timer)
+  }, [currentPage, totalPages, currentFilters, loading])
+
+  // Handle page change
+  const handlePageChange = (page: number) => {
+    startTransition(() => {
       const params = new URLSearchParams(searchParams.toString())
       params.set('page', page.toString())
       router.push(`${pathname}?${params.toString()}`, { scroll: false })
-      
-      // Smooth scroll to top
+    })
+    
+    setTimeout(() => {
       window.scrollTo({ top: 0, behavior: 'smooth' })
-    } else {
-      // Not cached, fetch it
-      setLoading(true)
-      
-      try {
-        const data = await fetchProducts(page, filters)
-        
-        // Cache it for future
-        cacheRef.current.set(cacheKey, data.products)
-        setProducts(data.products)
-        
-        // Update URL
-        const params = new URLSearchParams(searchParams.toString())
-        params.set('page', page.toString())
-        router.push(`${pathname}?${params.toString()}`, { scroll: false })
-        
-        window.scrollTo({ top: 0, behavior: 'smooth' })
-      } catch (error) {
-        console.error("Error loading products:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
+    }, 100)
   }
 
-  // Prefetch on hover (optional - even faster!)
+  // Prefetch on hover
   const handleMouseEnter = (page: number) => {
-    const cacheKey = getCacheKey(page, filters)
-    if (!cacheRef.current.has(cacheKey)) {
-      fetchProducts(page, filters).then(data => {
-        cacheRef.current.set(cacheKey, data.products)
-      }).catch(console.error)
+    const cacheKey = getCacheKey(page, currentFilters)
+    if (!cacheRef.current.has(cacheKey) && !loading) {
+      fetchProducts(page, currentFilters).then(data => {
+        cacheRef.current.set(cacheKey, {
+          products: data.products,
+          count: data.count
+        })
+      }).catch(() => {})
     }
   }
 
-  // ... rest of your existing JSX remains the same
-  
   return (
     <>
-      {/* Loading Overlay */}
       {loading && (
         <div className="fixed inset-0 bg-black bg-opacity-20 z-50 flex items-center justify-center">
           <div className="bg-white p-4 rounded-lg shadow-lg">
@@ -210,62 +282,82 @@ export default function ProductsGrid({
         </div>
       )}
 
-      {/* Products Grid */}
-      <div className="md:basis-[75%] grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 md:gap-8 gap-4">
-          {products.map((product) => (
+      <div className="md:basis-[75%] w-full">
+        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 md:gap-8 gap-4">
+          {products.length > 0 ? (
+            products.map((product) => (
               <div key={product.id}>
-                  <ProductCard product={product} />
+                <ProductCard product={product} />
               </div>
-          ))}
-      </div>
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="mt-8">
-          <div className="flex flex-col items-center gap-4">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => handlePageChange(currentPage - 1)}
-                onMouseEnter={() => handleMouseEnter(currentPage - 1)}
-                disabled={currentPage === 1}
-                className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors"
-              >
-                קודם
-              </button>
-
-              <div className="flex gap-2">
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                  <button
-                    key={page}
-                    onClick={() => handlePageChange(page)}
-                    onMouseEnter={() => handleMouseEnter(page)}
-                    className={`px-4 py-2 border rounded-lg transition-colors ${
-                      currentPage === page
-                        ? "bg-blue-600 text-white border-blue-600"
-                        : "border-gray-300 hover:bg-gray-100"
-                    }`}
-                  >
-                    {page}
-                  </button>
-                ))}
-              </div>
-
-              <button
-                onClick={() => handlePageChange(currentPage + 1)}
-                onMouseEnter={() => handleMouseEnter(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors"
-              >
-                הבא
-              </button>
+            ))
+          ) : (
+            <div className="col-span-full text-center py-12">
+              <p className="text-gray-500 text-lg">לא נמצאו מוצרים תואמים לסינונים שנבחרו</p>
             </div>
+          )}
+        </div>
 
-            <div className="text-center text-gray-600">
-              עמוד {currentPage} מתוך {totalPages} ({totalCount} מוצרים)
+        {totalPages > 1 && products.length > 0 && (
+          <div className="mt-8">
+            <div className="flex flex-col items-center gap-4">
+              <div className="flex items-center gap-2 flex-wrap justify-center">
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  onMouseEnter={() => handleMouseEnter(currentPage - 1)}
+                  disabled={currentPage === 1 || loading}
+                  className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors"
+                >
+                  קודם
+                </button>
+
+                <div className="flex gap-2 flex-wrap justify-center">
+                  {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                    let page: number;
+                    if (totalPages <= 5) {
+                      page = i + 1;
+                    } else if (currentPage <= 3) {
+                      page = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      page = totalPages - 4 + i;
+                    } else {
+                      page = currentPage - 2 + i;
+                    }
+                    
+                    return (
+                      <button
+                        key={page}
+                        onClick={() => handlePageChange(page)}
+                        onMouseEnter={() => handleMouseEnter(page)}
+                        disabled={loading}
+                        className={`px-4 py-2 border rounded-lg transition-colors ${
+                          currentPage === page
+                            ? "bg-blue-600 text-white border-blue-600"
+                            : "border-gray-300 hover:bg-gray-100"
+                        } disabled:opacity-50`}
+                      >
+                        {page}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  onMouseEnter={() => handleMouseEnter(currentPage + 1)}
+                  disabled={currentPage === totalPages || loading}
+                  className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors"
+                >
+                  הבא
+                </button>
+              </div>
+
+              <div className="text-center text-gray-600">
+                עמוד {currentPage} מתוך {totalPages} ({totalCount} מוצרים)
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </>
   )
 }

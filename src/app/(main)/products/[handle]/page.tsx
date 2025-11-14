@@ -1,131 +1,122 @@
 import { Metadata } from "next"
 import { notFound } from "next/navigation"
-import { listProducts } from "@lib/data/products"
-import { getRegion, listRegions } from "@lib/data/regions"
-import ProductTemplate from "@modules/products/templates"
 import { HttpTypes } from "@medusajs/types"
+import { listProducts } from "@lib/data/products"
+import ProductTemplate from "@modules/products/templates"
 
 type Props = {
-  params: Promise<{ countryCode: string; handle: string }>
-  searchParams: Promise<{ v_id?: string }>
+  params: Promise<{ handle: string }>
+  searchParams: Promise<{ variant?: string }>
 }
+
+const DEFAULT_REGION_ID = process.env.NEXT_PUBLIC_DEFAULT_REGION_ID || "reg_01K9ER4AAEJ0133FFBZVS61SFR"
 
 export async function generateStaticParams() {
   try {
-    const countryCodes = await listRegions().then((regions) =>
-      regions?.map((r) => r.countries?.map((c) => c.iso_2)).flat()
-    )
-
-    if (!countryCodes) {
-      return []
-    }
-
-    const promises = countryCodes.map(async (country) => {
-      const { response } = await listProducts({
-        countryCode: country,
-        queryParams: { limit: 100, fields: "handle" },
-      })
-
-      return {
-        country,
-        products: response.products,
-      }
+    const { response } = await listProducts({
+      regionId: DEFAULT_REGION_ID,
+      queryParams: { limit: 100, fields: "handle" },
     })
 
-    const countryProducts = await Promise.all(promises)
-
-    return countryProducts
-      .flatMap((countryData) =>
-        countryData.products.map((product) => ({
-          countryCode: countryData.country,
-          handle: product.handle,
-        }))
-      )
+    return response.products
+      .map((product) => ({
+        handle: product.handle,
+      }))
       .filter((param) => param.handle)
   } catch (error) {
-    console.error(
-      `Failed to generate static paths for product pages: ${
-        error instanceof Error ? error.message : "Unknown error"
-      }.`
-    )
+    console.error("Failed to generate static params:", error)
     return []
   }
 }
 
-function getImagesForVariant(
+function getVariantImages(
   product: HttpTypes.StoreProduct,
-  selectedVariantId?: string
-) {
-  if (!selectedVariantId || !product.variants) {
-    return product.images
+  variantId?: string
+): HttpTypes.StoreProductImage[] {
+  if (!variantId || !product.variants?.length || !product.images) {
+    return product.images || []
   }
 
-  const variant = product.variants!.find((v) => v.id === selectedVariantId)
-  if (!variant || !variant.images.length) {
-    return product.images
+  const variant = product.variants.find((v) => v.id === variantId)
+  
+  if (variant?.images?.length) {
+    return variant.images
   }
 
-  const imageIdsMap = new Map(variant.images.map((i) => [i.id, true]))
-  return product.images!.filter((i) => imageIdsMap.has(i.id))
+  return product.images
 }
 
 export async function generateMetadata(props: Props): Promise<Metadata> {
-  const params = await props.params
-  const { handle } = params
-  const region = await getRegion(params.countryCode)
+  try {
+    const params = await props.params
 
-  if (!region) {
-    notFound()
-  }
+    const { response } = await listProducts({
+      regionId: DEFAULT_REGION_ID,
+      queryParams: { 
+        handle: params.handle,
+        limit: 1 
+      },
+    })
 
-  const product = await listProducts({
-    countryCode: params.countryCode,
-    queryParams: { handle },
-  }).then(({ response }) => response.products[0])
+    const product = response?.products?.[0]
 
-  if (!product) {
-    notFound()
-  }
+    if (!product) {
+      return {
+        title: "Product Not Found",
+      }
+    }
 
-  return {
-    title: `${product.title} | Medusa Store`,
-    description: `${product.title}`,
-    openGraph: {
+    const image = product.thumbnail || product.images?.[0]?.url
+
+    return {
       title: `${product.title} | Medusa Store`,
-      description: `${product.title}`,
-      images: product.thumbnail ? [product.thumbnail] : [],
-    },
+      description: product.description || `Buy ${product.title}`,
+      openGraph: {
+        title: product.title,
+        description: product.description || `Buy ${product.title}`,
+        images: image ? [{ url: image }] : [],
+      },
+    }
+  } catch (error) {
+    console.error("Error generating metadata:", error)
+    return {
+      title: "Product Not Found",
+    }
   }
 }
 
 export default async function ProductPage(props: Props) {
-  const params = await props.params
-  const region = await getRegion(params.countryCode)
-  const searchParams = await props.searchParams
+  try {
+    const params = await props.params
+    const searchParams = await props.searchParams
 
-  const selectedVariantId = searchParams.v_id
+    const { response } = await listProducts({
+      regionId: DEFAULT_REGION_ID,
+      queryParams: { 
+        handle: params.handle,
+        limit: 1 
+      },
+    })
 
-  if (!region) {
+    const product = response?.products?.[0]
+
+    if (!product) {
+      notFound()
+    }
+
+    const selectedVariantId = searchParams.variant
+    const selectedVariant = product.variants?.find((v) => v.id === selectedVariantId) || product.variants?.[0]
+    
+    const images = getVariantImages(product, selectedVariant?.id)
+
+    return (
+      <ProductTemplate
+        product={product}
+        images={images}
+      />
+    )
+  } catch (error) {
+    console.error("Error loading product page:", error)
     notFound()
   }
-
-  const pricedProduct = await listProducts({
-    countryCode: params.countryCode,
-    queryParams: { handle: params.handle },
-  }).then(({ response }) => response.products[0])
-
-  const images = getImagesForVariant(pricedProduct, selectedVariantId)
-
-  if (!pricedProduct) {
-    notFound()
-  }
-
-  return (
-    <ProductTemplate
-      product={pricedProduct}
-      region={region}
-      countryCode={params.countryCode}
-      images={images}
-    />
-  )
 }
