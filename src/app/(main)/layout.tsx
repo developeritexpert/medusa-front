@@ -10,7 +10,7 @@ import Nav from "@modules/layout/templates/nav"
 export const metadata: Metadata = {
   metadataBase: new URL(getBaseURL()),
 }
-// export const revalidate = 3600;
+// export const revalidate = 5;
 export default async function PageLayout(props: { children: React.ReactNode }) {
 
   return (

@@ -1,23 +1,15 @@
-import { Heading, Text } from "@medusajs/ui"
-
-import InteractiveLink from "@modules/common/components/interactive-link"
-
+import Link from "next/link"
 const EmptyCartMessage = () => {
   return (
-    <div className="py-48 px-2 flex flex-col justify-center items-start" data-testid="empty-cart-message">
-      <Heading
-        level="h1"
-        className="flex flex-row text-3xl-regular gap-x-2 items-baseline"
-      >
-        Cart
-      </Heading>
-      <Text className="text-base-regular mt-4 mb-6 max-w-[32rem]">
-        You don&apos;t have anything in your cart. Let&apos;s change that, use
-        the link below to start browsing our products.
-      </Text>
-      <div>
-        <InteractiveLink href="/store">Explore products</InteractiveLink>
-      </div>
+    <div className="text-center py-20">
+        <h2 className="text-xl md:text-3xl font-bold mb-4">העגלה שלך ריקה</h2>
+        <p className=" mb-8">עדיין לא הוספת מוצרים לעגלת הקניות</p>
+        <Link
+            href="/store"
+            className="bg-gradient-to-r from-[#3EE8F0] to-[#0A90C8] !text-white font-semibold py-3 px-6 rounded-full"
+        >
+            המשך לקניות
+        </Link>
     </div>
   )
 }

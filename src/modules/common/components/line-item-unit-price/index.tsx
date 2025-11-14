@@ -21,6 +21,7 @@ const LineItemUnitPrice = ({
   )
 
   return (
+    
     <div className="flex flex-col text-ui-fg-muted justify-center h-full">
       {hasReducedPrice && (
         <>
@@ -44,7 +45,7 @@ const LineItemUnitPrice = ({
         </>
       )}
       <span
-        className={clx("text-base-regular", {
+        className={clx("text-[18px] font-semibold text-[#0A90C8]", {
           "text-ui-fg-interactive": hasReducedPrice,
         })}
         data-testid="product-unit-price"
