@@ -138,6 +138,8 @@ export default function ProductActions({
   return (
     <>
       <div className="flex flex-col gap-y-2" ref={actionsRef}>
+        {/* <pre>{JSON.stringify(product.variants, null, 2)}</pre> */}
+         <ProductPrice product={product} variant={selectedVariant} />
         <div>
           {(product.variants?.length ?? 0) > 1 && (
             <div className="flex flex-col gap-y-4">
@@ -160,7 +162,7 @@ export default function ProductActions({
           )}
         </div>
 
-        <ProductPrice product={product} variant={selectedVariant} />
+       
 
         <Button
           onClick={handleAddToCart}

@@ -69,12 +69,14 @@ export default function ServiceSlider({ products }) {
         <div className="relative">
             <Slider ref={sliderRef} {...settings}>
                 {slides && slides.map((item, i) => (
+                    <a href={`/products/${item.handle}`}>
                         <div key={i} className="px-4 !inline-flex flex-col items-center">
                             <div className="bg-[#1921610A] rounded-full p-6 h-[90px] w-[90px] md:h-[150px] md:w-[150px] flex items-center justify-center">
                                 <Image src={item.thumbnail} alt="Model" width={200} height={200} className="max-w-[70px] max-h-[70px] md:max-w-[120px] md:max-h-[120px] object-contain" />
                             </div>
                             <p className="text-center font-semibold mt-[5px] md:text-base text-sm">{item.title}</p>
                         </div>
+                    </a>
                 ))}
                 {error && <div className="text-red-500">{error}</div>}
             </Slider>

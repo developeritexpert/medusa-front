@@ -21,8 +21,9 @@ export default function ProductCard({ product }) {
       </div>
 
       <div className="p-4 text-right">
-        <h3 className="text-[16px] font-normal mb-2 line-clamp-2">{product.title}</h3>
-        
+        <a href={`/products/${product.handle}`}>
+          <h3 className="text-[16px] font-normal mb-2 line-clamp-2">{product.title}</h3>
+        </a>
         <p className="text-[16px] font-semibold text-[#0A90C8] mb-3">
           ₪ {price}
         </p>
